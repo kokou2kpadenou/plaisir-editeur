@@ -105,4 +105,4 @@ RUN git clone --depth 1 https://github.com/wbthomason/packer.nvim\
 
 RUN nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
 
-WORKDIR /outside
+WORKDIR /workspace
