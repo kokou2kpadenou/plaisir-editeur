@@ -81,7 +81,8 @@ RUN npm i -g \
     alex \
     bash-language-server \
     @tailwindcss/language-server \
-    @astrojs/language-server
+    @astrojs/language-server \
+    dockerfile-language-server-nodejs
 
 ENV ENV="/root/.ashrc"
 
