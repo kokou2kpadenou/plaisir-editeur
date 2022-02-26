@@ -80,7 +80,8 @@ RUN npm i -g \
     stylelint \
     alex \
     bash-language-server \
-    @tailwindcss/language-server
+    @tailwindcss/language-server \
+    @astrojs/language-server
 
 ENV ENV="/root/.ashrc"
 
