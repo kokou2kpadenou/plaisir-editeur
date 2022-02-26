@@ -1,9 +1,6 @@
 # Build neovim separately in the first stage
 FROM alpine:latest AS base
 
-# Maintainer
-MAINTAINER KOKOU KPADENOU
-
 RUN apk --no-cache add \
     autoconf \
     automake \
