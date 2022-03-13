@@ -65,7 +65,8 @@ RUN apk --no-cache add go
 
 RUN go install golang.org/x/tools/gopls@latest
 
-# Lsp: tsserver, (cssls, html, json), yaml, eslint, formatter:efm(prettier, stylelint, alex), bashls, tailwindcss
+# Lsp: tsserver, (cssls, html, json), yaml, eslint, formatter:efm(prettier, stylelint, alex), bashls, tailwindcss,
+# astrojs, dockerfile
 RUN apk --no-cache add nodejs npm
 
 RUN npm i -g \
@@ -96,7 +97,7 @@ RUN apk --no-cache add \
 
 RUN apk --no-cache add stow
 
-RUN cd /root/.config/.dotfiles/settings && stow --target=/root -S stow w_o_nvimlua
+RUN cd /root/.config/.dotfiles/settings && stow --target=/root -S stow w_o_nvimlua efm-langserver
 
 RUN cd -
 
