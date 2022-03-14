@@ -1,0 +1,19 @@
+# ~/.bashrc extension
+
+# Keep only this line for PATH
+export PATH=$PATH:/home/neovim/.local/lua-language-server/bin:/home/neovim/go/bin:/home/neovim/.cargo/bin
+
+
+# New entries must be added after this line
+# ----------------------------------------------------------------------------------------
+
+set -o vi
+
+export DOTFILES=/home/neovim/.config/.dotfiles
+
+export EDITOR=nvim
+
+# Aliases
+if [ -e /home/neovim/.bash_aliases ]; then
+    source /home/neovim/.bash_aliases
+fi
