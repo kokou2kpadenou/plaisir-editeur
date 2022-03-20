@@ -8,8 +8,8 @@ RUN pacman -S --noconfirm \
   curl \
   sudo \
   git \
-  xdg-utils \
-  xdg-user-dirs \
+  # xdg-utils \
+  # xdg-user-dirs \
   base-devel \
   cmake \
   unzip \
@@ -18,7 +18,7 @@ RUN pacman -S --noconfirm \
   wget \
   xsel \
   bash-completion \
-  highlight \
+  # highlight \
   stow \
   fzf \
   ripgrep \
@@ -108,7 +108,7 @@ RUN nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
 
 # TODO: Treesitter parser installation
 # Try to install treesitter parser, but not working
-# RUN . ~/.bashrc && nvim --headless +TSUpdate +qa
+# RUN nvim --headless +TSUpdate +qa
 
 # Remove dotfiles after image build, it will be mounted from host with volume
 RUN rm -rf ~/.config/.dotfiles
