@@ -1,0 +1,12 @@
+# TODO: make improvement wuith options like
+# -f for filename (the path start from Documents)
+# -d for folder where to find the file
+
+dnvim(){
+  docker exec -it saint bash -c ". ~/.bashrc && cd ~/Documents/$@ && nvim"
+}
+
+dmaint(){
+  docker exec -it saint bash
+}
+
