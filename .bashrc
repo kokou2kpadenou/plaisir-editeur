@@ -1,11 +1,18 @@
-# ~/.bashrc extension
+#
+# ~/.bashrc
+#
 
-# Keep only this line for PATH
+source $HOME/.profile
+
 export PATH=$PATH:/home/neovim/.local/lua-language-server/bin:/home/neovim/go/bin:/home/neovim/.cargo/bin
 
 
-# New entries must be added after this line
-# ----------------------------------------------------------------------------------------
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
+alias ls='ls --color=auto'
+PS1='[\u@\h \W]\$ '
+
 
 set -o vi
 

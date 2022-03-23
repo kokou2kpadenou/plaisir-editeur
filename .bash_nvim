@@ -3,10 +3,10 @@
 # -d for folder where to find the file
 
 dnvim(){
-  docker exec -it saint bash -c ". ~/.bashrc && cd ~/Documents/$@ && nvim"
+  docker exec -it diablo bash -c ". ~/.bashrc && cd ~/Documents/$@ && nvim"
 }
 
 dmaint(){
-  docker exec -it saint bash
+  docker exec -it diablo bash
 }
 

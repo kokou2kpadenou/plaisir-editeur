@@ -1,43 +1,51 @@
 # Build neovim separately in the first stage
-FROM archlinux:latest AS base
+FROM alpine:latest AS base
 
-RUN pacman -Syu --noconfirm
-
-RUN pacman -S --noconfirm \
-  bash \
-  curl \
+RUN apk --no-cache add -U \
+  tzdata \
   sudo \
   git \
-  # xdg-utils \
-  # xdg-user-dirs \
-  base-devel \
+  build-base \
   cmake \
-  unzip \
+  automake \
+  autoconf \
   ninja \
-  tree-sitter \
+  libtool \
+  pkgconf \
+  coreutils \
+  unzip \
+  gettext-tiny-dev \
   wget \
   xsel \
   bash-completion \
-  # highlight \
   stow \
   fzf \
   ripgrep \
-  fd
+  fd \
+  go \
+  curl bash ca-certificates openssl ncurses coreutils \
+  python3 make gcc g++ libgcc linux-headers grep util-linux binutils findutils
 
-# Set timezone and langue
+
+# Set timezone and language
 ENV TZ=America/New_York
+ENV LANG en_US.UTF-8
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN sed -i '/^#en_US.UTF-8 UTF-8/s/^#//g' /etc/locale.gen
-RUN echo "LANG=en_US.UTF-8" > /etc/locale.conf && locale-gen
+# language
+# RUN sed -i '/^#en_US.UTF-8 UTF-8/s/^#//g' /etc/locale.gen
+# RUN echo "LANG=en_US.UTF-8" > /etc/locale.conf && locale-gen
 
 # Build neovim
-RUN git clone https://github.com/neovim/neovim.git ~/neovim
 ARG VERSION=master
-RUN cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install
+RUN git clone https://github.com/neovim/neovim.git ~/neovim \
+  && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install
 
 # Create user neovim
 ARG UNAME=neovim
-RUN useradd -m ${UNAME} && echo "$UNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${UNAME}
+RUN addgroup -g 1000 -S ${UNAME} \
+  && adduser -S ${UNAME} -u 1000 -G ${UNAME} \
+  && echo "${UNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Switch to neovim
 USER ${UNAME}
 
 # Install lua-language-server
@@ -51,21 +59,22 @@ RUN mkdir -p ~/.local \
   && cd ~
 
 # stylua
-RUN sudo pacman -Sy --noconfirm rust cargo \
-  && cargo install stylua
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+  && source $HOME/.cargo/env \
+  && cargo install stylua --features lua52
 
 # Lsp: efm-server and gopls
-RUN sudo pacman -Sy --noconfirm go \
-  && go install github.com/mattn/efm-langserver@latest \
+RUN go install github.com/mattn/efm-langserver@latest \
   && go install golang.org/x/tools/gopls@latest
 
-# NVM (nodejs) and some lsp base on nodejs
+# NVM (nodejs) and some nodejs based lsp
 ARG VERSION_OF_NVM=v0.39.1
-RUN touch ~/.bashrc && chmod +x ~/.bashrc
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/${VERSION_OF_NVM}/install.sh | bash
-RUN . ~/.nvm/nvm.sh \
+RUN touch ~/.bashrc && chmod +x ~/.bashrc \
+  && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/${VERSION_OF_NVM}/install.sh | bash \
+  && NVM_DIR="$HOME/.nvm" \
+  && . ~/.nvm/nvm.sh \
   && source ~/.bashrc \
-  && nvm install node \
+  && nvm install -s node \
   && nvm use node \
   && nvm alias default node \
   && npm i -g npm@latest \
@@ -84,27 +93,18 @@ RUN . ~/.nvm/nvm.sh \
   @astrojs/language-server \
   dockerfile-language-server-nodejs
 
-# Clone dotfile from github repo
-RUN git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles
-
-# Creation of link
-RUN cd ~/.config/.dotfiles/settings \
+# Clone dotfile from github repo - Creation of link
+RUN git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles \
+  && cd ~/.config/.dotfiles/settings \
   && stow --target=/home/neovim -S stow w_o_nvimlua efm-langserver bash
 
-# bashrc file completion
-COPY .bashrc_extension /home/neovim
-RUN cat /home/neovim/.bashrc_extension >> /home/neovim/.bashrc \
-  # Move lines 11 to 20 to line 3
-  && nvim --clean --headless -c ':11,20:m3' -cwq /home/neovim/.bashrc \
-  && rm /home/neovim/.bashrc_extension
+# bashrc file
+COPY .bashrc /home/neovim
 
-
-# Packer.vim installation
-RUN git clone --depth 1 https://github.com/wbthomason/packer.nvim\
-  ~/.local/share/nvim/site/pack/packer/start/packer.nvim
-
-# Installation of Neovim Packages
-RUN nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
+# Packer.vim installation - Installation of Neovim Packages
+RUN git clone --depth 1 https://github.com/wbthomason/packer.nvim \
+  ~/.local/share/nvim/site/pack/packer/start/packer.nvim \
+  && nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
 
 # TODO: Treesitter parser installation
 # Try to install treesitter parser, but not working
