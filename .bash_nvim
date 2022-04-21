@@ -1,12 +1,27 @@
-# TODO: make improvement wuith options like
-# -f for filename (the path start from Documents)
-# -d for folder where to find the file
+#!/bin/bash
 
-dnvim(){
-  docker exec -it saint bash -c ". ~/.bashrc && cd ~/Documents/$@ && nvim"
-}
+# dnvim: run neovim in docker
+if [[ ! -z "$(compgen -c | grep "^dnvim$")" ]]
+then
+  echo "The command 'dnvim' already exists."
+else
+  dnvim(){
+    docker exec -it saint bash -c ". ~/.bashrc && cd ~/Documents/$@ && nvim"
+  }
+
+  dn_from_dir(){
+    cd ~/Documents
+  }
+
+  complete -d -F dn_from_dir dnvim
+fi
+
+
+# dmaint : access neovim docker shell for maintenance
+[[ ! -z "$(compgen -c | grep "^dmaint$")" ]] \
+  && echo "The command 'dmaint' already exists." \
+  && exit
 
 dmaint(){
   docker exec -it saint bash
 }
-
