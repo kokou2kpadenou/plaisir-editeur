@@ -14,10 +14,8 @@ RUN pacman -Syu --noconfirm \
   ninja \
   tree-sitter \
   wget \
-  xsel \
   bash-completion \
   stow \
-  fzf \
   ripgrep \
   fd \
   rust cargo \
@@ -90,7 +88,7 @@ RUN git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles
   && stow --target=/home/neovim -S stow w_o_nvimlua efm-langserver bash
 
 # bashrc file completion
-COPY .bashrc /home/neovim
+COPY --chown=neovim:neovim .bashrc /home/neovim
 
 # Packer.vim installation and Installation of Neovim Packages
 RUN git clone --depth 1 https://github.com/wbthomason/packer.nvim\
