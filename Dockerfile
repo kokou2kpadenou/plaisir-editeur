@@ -19,7 +19,8 @@ RUN pacman -Syu --noconfirm \
   ripgrep \
   fd \
   rust cargo \
-  go
+  go \
+  xsel
 
 
 # Set timezone and langue
@@ -33,12 +34,20 @@ ARG VERSION=master
 RUN git clone https://github.com/neovim/neovim.git ~/neovim \
   && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install
 
-# Create user neovim
-ARG UNAME=neovim
-RUN useradd -m ${UNAME} && echo "$UNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${UNAME}
+# Arguments picked from the command line!
+ARG user
+ARG uid
+ARG gid
 
-# Change to neovim
-USER ${UNAME}
+# Add new user with our credentials
+ENV USERNAME ${user}
+RUN useradd -m $USERNAME && \
+        echo "$USERNAME:$USERNAME" | chpasswd && \
+        usermod --shell /bin/bash $USERNAME && \
+        usermod  --uid ${uid} $USERNAME && \
+        groupmod --gid ${gid} $USERNAME
+
+USER ${user}
 
 # Install lua-language-server
 RUN mkdir -p ~/.local \
@@ -85,10 +94,10 @@ RUN . ~/.nvm/nvm.sh \
 # Clone dotfile from github repo and Creation of link
 RUN git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles \
   && cd ~/.config/.dotfiles/settings \
-  && stow --target=/home/neovim -S stow w_o_nvimlua efm-langserver bash
+  && stow --target=/home/${user} -S stow w_o_nvimlua efm-langserver bash
 
 # bashrc file completion
-COPY --chown=neovim:neovim .bashrc /home/neovim
+COPY --chown=${user}:${user} .bashrc /home/${user}
 
 # Packer.vim installation and Installation of Neovim Packages
 RUN git clone --depth 1 https://github.com/wbthomason/packer.nvim\
@@ -99,7 +108,7 @@ RUN git clone --depth 1 https://github.com/wbthomason/packer.nvim\
 # Try to install treesitter parser, but not working
 # RUN nvim --headless +TSUpdate +qa
 
-# Remove dotfiles after image build, it will be mounted from host with volume
+# Remove dotfiles after image build, it will be mounted later from host with volume
 RUN rm -rf ~/.config/.dotfiles
 #
-WORKDIR /home/neovim/Documents
+WORKDIR /home/${user}/Documents
