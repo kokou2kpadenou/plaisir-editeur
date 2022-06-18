@@ -1,11 +1,56 @@
 #!/bin/bash
 
+# create_xauth_saint: create a xauth file with access permission
+create_xauth_saint(){
+  # delete any folder with the same name
+  sudo \rm -rf /tmp/.docker.xauth/
+  # create a xauth file with access permission
+  xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f /tmp/.docker.xauth nmerge -
+}
+
+
+# run_container_saint: run the docker
+run_container_saint(){
+  docker run -dit --restart unless-stopped --name saint -h saint \
+    -e DISPLAY=unix$DISPLAY \
+    -v /home/$USER/Documents:/home/$USER/Documents \
+    -v /home/$USER/.config/.dotfiles:/home/$USER/.config/.dotfiles \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -v /tmp/.docker.xauth:/tmp/.docker.xauth:rw -e XAUTHORITY=/tmp/.docker.xauth \
+    saint:latest bash  
+}
+
+
+# start_saint: run or start container saint
+start_saint(){
+  container_exist=$( docker ps -a -f name=saint | grep saint 2> /dev/null )
+ 
+  if [[ ! -z ${container_exist} ]]; then 
+    container_exited=$( docker ps -a -f status=exited | grep saint 2> /dev/null )
+    if [[ ! -z ${container_exited} ]]; then
+
+      create_xauth_saint
+
+      # restart container saint
+      docker container start saint
+    fi
+
+  else
+
+    create_xauth_saint
+
+    run_container_saint
+  fi
+}
+
+
 # dnvim: run neovim in docker
 if [[ ! -z "$(compgen -c | grep "^dnvim$")" ]]
 then
   echo "The command 'dnvim' already exists."
 else
   dnvim(){
+    start_saint
     docker exec -it saint bash -c ". ~/.bashrc && cd ~/Documents/$@ && nvim"
   }
 
@@ -23,5 +68,6 @@ fi
   && exit
 
 dmaint(){
+  start_saint
   docker exec -it saint bash
 }
