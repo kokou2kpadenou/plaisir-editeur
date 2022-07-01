@@ -99,6 +99,9 @@ RUN git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles
 # bashrc file completion
 COPY --chown=${user}:${user} .bashrc /home/${user}
 
+# Enables tab-completion in all npm commands
+RUN source ~/.bashrc && npm completion >> ~/.bashrc
+
 # Packer.vim installation and Installation of Neovim Packages
 RUN git clone --depth 1 https://github.com/wbthomason/packer.nvim\
   ~/.local/share/nvim/site/pack/packer/start/packer.nvim \
