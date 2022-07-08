@@ -89,7 +89,9 @@ RUN . ~/.nvm/nvm.sh \
   bash-language-server \
   @tailwindcss/language-server \
   @astrojs/language-server \
-  dockerfile-language-server-nodejs
+  dockerfile-language-server-nodejs \
+  cssmodules-language-server \
+  emmet-ls
 
 # Clone dotfile from github repo and Creation of link
 RUN git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles \
