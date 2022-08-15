@@ -1,38 +1,37 @@
 # Build neovim separately in the first stage
-FROM archlinux:latest AS base
+FROM debian:latest AS base
 
-# Update archlinx and install needed packages
-RUN pacman -Syu --noconfirm \
-  && pacman -S --noconfirm \
+# Update debian and install needed packages
+RUN apt update && apt upgrade -y \
+  && apt install -y \
+  locales \
   bash \
-  curl \
   sudo \
   git \
-  base-devel \
-  cmake \
-  unzip \
-  ninja \
-  tree-sitter \
   wget \
   bash-completion \
   stow \
   ripgrep \
-  fd \
-  rust cargo \
-  go \
-  xsel
+  fd-find \
+  xsel \
+  golang \
+# Neovim Build Prerequisites
+  ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen
 
+# Change shell to bash
+SHELL ["/bin/bash", "-ec"]
 
-# Set timezone and langue
+# Set image locale
 ENV TZ=America/New_York
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
-  && sed -i '/^#en_US.UTF-8 UTF-8/s/^#//g' /etc/locale.gen \
-  && echo "LANG=en_US.UTF-8" > /etc/locale.conf && locale-gen
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+ENV LANG en_US.UTF-8  
+ENV LANGUAGE en_US:en  
+ENV LC_ALL en_US.UTF-8  
 
 # Build neovim
 ARG VERSION=master
 RUN git clone https://github.com/neovim/neovim.git ~/neovim \
-  && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install
+  && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install && rm -rf ~/neovim
 
 # Arguments picked from the command line!
 ARG user
@@ -49,7 +48,34 @@ RUN useradd -m $USERNAME && \
 
 USER ${user}
 
-# Install lua-language-server
+RUN git clone https://go.googlesource.com/go ~/go17 && \
+  cd ~/go17 && \
+  git checkout go1.17 && \
+  cd src && \
+  ./all.bash
+
+# PATH
+ENV PATH_TMP=$PATH 
+ENV PATH=~/go17/bin:$PATH
+ 
+RUN ls -a ~/go17
+ENV GOROOT_BOOTSTRAP=~/go17
+
+RUN git clone https://go.googlesource.com/go ~/go && \
+  cd ~/go && \
+  git checkout master && \
+  cd src && \
+  ./all.bash
+
+RUN rm -rf ~/go17
+
+# PATH
+ENV PATH=~/.cargo/bin:~/go/bin:$PATH_TMP
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+
 RUN mkdir -p ~/.local \
   && cd ~/.local \
   && git clone --recursive https://github.com/sumneko/lua-language-server \
@@ -63,6 +89,7 @@ RUN mkdir -p ~/.local \
 RUN cargo install stylua
 
 # Lsp: efm-server and gopls
+ENV GOPATH=/home/${user}/go
 RUN go install github.com/mattn/efm-langserver@latest \
   && go install golang.org/x/tools/gopls@latest
 
@@ -115,5 +142,6 @@ RUN git clone --depth 1 https://github.com/wbthomason/packer.nvim\
 
 # Remove dotfiles after image build, it will be mounted later from host with volume
 RUN rm -rf ~/.config/.dotfiles
+# RUN sudo apt purge golang
 #
 WORKDIR /home/${user}/Documents
