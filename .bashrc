@@ -26,3 +26,8 @@ export EDITOR=nvim
 if [ -e $HOME/.bash_aliases ]; then
     source $HOME/.bash_aliases
 fi
+
+# Bash completion
+if [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+fi
