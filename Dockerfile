@@ -1,4 +1,4 @@
-# Build neovim separately in the first stage
+#
 FROM debian:latest AS base
 
 # Update debian and install needed packages
@@ -14,9 +14,9 @@ RUN apt update && apt upgrade -y \
   ripgrep \
   fd-find \
   xsel \
-  golang \
-# Neovim Build Prerequisites
-  ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen
+  ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen \
+  postgresql-client default-mysql-client \
+  sqlite3 libsqlite3-dev
 
 # Change shell to bash
 SHELL ["/bin/bash", "-ec"]
