@@ -71,7 +71,6 @@ RUN wget -q -O - https://git.io/vQhTU | bash -s -- --version 1.19
 RUN cargo install stylua
 
 # gopls
-# ENV GOPATH=/home/${user}/go
 RUN go install golang.org/x/tools/gopls@latest
 
 # NVM (nodejs) and some lsp base on nodejs
