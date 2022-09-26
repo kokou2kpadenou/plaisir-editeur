@@ -48,34 +48,7 @@ RUN useradd -m $USERNAME && \
 
 USER ${user}
 
-RUN git clone https://go.googlesource.com/go ~/go17 && \
-  cd ~/go17 && \
-  git checkout go1.17 && \
-  cd src && \
-  ./all.bash
-
-# PATH
-ENV PATH_TMP=$PATH 
-ENV PATH=~/go17/bin:$PATH
- 
-RUN ls -a ~/go17
-ENV GOROOT_BOOTSTRAP=~/go17
-
-RUN git clone https://go.googlesource.com/go ~/go && \
-  cd ~/go && \
-  git checkout master && \
-  cd src && \
-  ./all.bash
-
-RUN rm -rf ~/go17
-
-# PATH
-ENV PATH=~/.cargo/bin:~/go/bin:$PATH_TMP
-
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-
-
+# Install Lua Language Sever
 RUN mkdir -p ~/.local \
   && cd ~/.local \
   && git clone --recursive https://github.com/sumneko/lua-language-server \
@@ -85,13 +58,21 @@ RUN mkdir -p ~/.local \
   && ./3rd/luamake/luamake rebuild \
   && cd ~
 
+# PATH
+ENV PATH=~/.cargo/bin:~/.go/bin:~/go/bin:$PATH
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# Install Go
+RUN wget -q -O - https://git.io/vQhTU | bash -s -- --version 1.19
+
 # stylua
 RUN cargo install stylua
 
-# Lsp: efm-server and gopls
-ENV GOPATH=/home/${user}/go
-RUN go install github.com/mattn/efm-langserver@latest \
-  && go install golang.org/x/tools/gopls@latest
+# gopls
+# ENV GOPATH=/home/${user}/go
+RUN go install golang.org/x/tools/gopls@latest
 
 # NVM (nodejs) and some lsp base on nodejs
 ARG VERSION_OF_NVM=v0.39.1
