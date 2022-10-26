@@ -9,11 +9,11 @@ export NVM_DIR="$HOME/.nvm"
 
 export PATH=$PATH:$HOME/.local/lua-language-server/bin:$HOME/.go/bin:$HOME/go/bin:$HOME/.cargo/bin
 
+export NVIM=$HOME/.config/.dotfiles/settings/w_o_nvimlua/.config/nvim
 
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
-alias ls='ls --color=auto'
 PS1='[\u@\h \W]\$ '
 
 set -o vi
