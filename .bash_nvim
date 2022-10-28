@@ -11,7 +11,9 @@ create_xauth_saint(){
 
 # run_container_saint: run the docker
 run_container_saint(){
-  docker run -dit --restart unless-stopped --name saint -h saint \
+  docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
+    || docker network create --driver bridge le_saint_esprit \
+  && docker run -dit --network=le_saint_esprit --restart unless-stopped --name saint -h saint \
     -e DISPLAY=unix$DISPLAY \
     -v /home/$USER/Documents:/home/$USER/Documents \
     -v /home/$USER/.config/.dotfiles:/home/$USER/.config/.dotfiles \
