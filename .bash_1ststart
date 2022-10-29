@@ -1,0 +1,22 @@
+#!/bin/bash
+# This script runs if the container is started for the first time.
+
+# Lsp: bash, tsserver, (cssls, html, json), yaml, eslint, bashls, tailwindcss, astrojs, dockerfile
+#      cssmodules emmets
+# Formater: stylua, prettierd, stylelint
+# lint: eslint
+pnpm add -g \
+  typescript typescript-language-server \
+  vscode-langservers-extracted \
+  yaml-language-server \
+  eslint \
+  @fsouza/prettierd \
+  stylelint \
+  bash-language-server \
+  @tailwindcss/language-server \
+  @astrojs/language-server \
+  dockerfile-language-server-nodejs \
+  cssmodules-language-server \
+  emmet-ls \
+  @johnnymorganz/stylua-bin \
+  && rm $HOME/.bash_1ststart &>/dev/null
