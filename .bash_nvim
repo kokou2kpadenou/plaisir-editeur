@@ -64,12 +64,3 @@ else
 fi
 
 
-# dmaint : access neovim docker shell for maintenance
-[[ ! -z "$(compgen -c | grep "^dmaint$")" ]] \
-  && echo "The command 'dmaint' already exists." \
-  && exit
-
-dmaint(){
-  start_saint
-  docker exec -it saint bash
-}
