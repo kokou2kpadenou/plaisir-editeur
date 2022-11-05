@@ -1,11 +1,18 @@
 #!/bin/bash
+#
+# Env variables to set: DOTFILES, DNVIM_XAUTH, DNVIM_WRKDIR
+# DOTFILES = $HOME/.config/.dotfiles
+# DNVIM_XAUTH = /tmp/.docker.xauth
+# DNVIM_WRKDIR = $HOME/Documents
 
 # create_xauth_saint: create a xauth file with access permission
 create_xauth_saint(){
-  # delete any folder with the same name
-  sudo rm -rf $DNVIM_XAUTH
-  # create a xauth file with access permission
-  xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $DNVIM_XAUTH nmerge - &> /dev/null
+  if [[ -n $DNVIM_XAUTH ]]; then
+    # delete any folder with the same name
+    sudo rm -rf $DNVIM_XAUTH
+    # create a xauth file with access permission
+    xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $DNVIM_XAUTH nmerge - &> /dev/null
+  fi
 }
 
 
@@ -16,15 +23,30 @@ run_container_saint(){
   #       * block all traffics to host
   #       * Block all traffics to others dockers
   #       * Restrict traffics to internet
-  docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
-    || docker network create --driver bridge le_saint_esprit \
-    && docker run -dit --network=le_saint_esprit --restart unless-stopped --name saint -h saint \
-    -e DISPLAY=unix$DISPLAY \
-    -v ${DNVIM_WRKDIR}:/home/$USER/Documents \
-    -v ${DOTFILES}:/home/$USER/.config/.dotfiles \
-    -v /tmp/.X11-unix:/tmp/.X11-unix \
-    -v $DNVIM_XAUTH:${DNVIM_XAUTH}:rw -e XAUTHORITY=$DNVIM_XAUTH \
-    saint:latest bash
+
+  # TODO: Make this block of code DRY
+  if [[ -n $DNVIM_XAUTH ]]; then
+    docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
+      || docker network create --driver bridge le_saint_esprit \
+      && docker run -dit --network=le_saint_esprit --restart unless-stopped --name saint -h saint \
+      -v ${DNVIM_WRKDIR}:/home/$USER/Documents \
+      -v ${DOTFILES}:/home/$USER/.config/.dotfiles \
+      -e DISPLAY=unix$DISPLAY \
+      -v /tmp/.X11-unix:/tmp/.X11-unix \
+      -v $DNVIM_XAUTH:${DNVIM_XAUTH}:rw -e XAUTHORITY=$DNVIM_XAUTH \
+      saint:latest bash
+  else
+    docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
+      || docker network create --driver bridge le_saint_esprit \
+      && docker run -dit --network=le_saint_esprit --restart unless-stopped --name saint -h saint \
+      -v ${DNVIM_WRKDIR}:/home/$USER/Documents \
+      -v ${DOTFILES}:/home/$USER/.config/.dotfiles \
+      -e XDG_RUNTIME_DIR=/tmp \
+      -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+      -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY \
+      saint:latest bash
+  fi
+
   }
 
 
@@ -72,4 +94,3 @@ else
 
   # TODO: Zsh completion
 fi
-
