@@ -4,8 +4,10 @@ FROM debian:stable-slim AS base
 SHELL ["/bin/bash", "-ec"]
 
 # Set image locale
+RUN apt-get update && apt-get install -y locales && rm -rf /var/lib/apt/lists/* \
+	&& localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+ENV LANG en_US.utf8
 ENV TZ=America/New_York
-ENV LANG en_US.UTF-8  
 ENV LANGUAGE en_US:en  
 ENV LC_ALL en_US.UTF-8  
 
@@ -28,13 +30,11 @@ RUN useradd -m $USERNAME && \
   usermod  --uid ${uid} $USERNAME && \
   groupmod --gid ${gid} $USERNAME \
   # Update debian and install needed packages
-  && apt update && apt upgrade -y \
+  && apt update \
   && apt install -y \
-  locales \
   bash \
   git \
   wget \
-  # bash-completion \
   stow \
   ripgrep \
   fd-find \
@@ -42,7 +42,6 @@ RUN useradd -m $USERNAME && \
   ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen \
   postgresql-client default-mysql-client \
   # sqlite3 libsqlite3-dev \ TOBE: remove
-  && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen \
   # compile neovim
   && git clone https://github.com/neovim/neovim.git ~/neovim \
   && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install && rm -rf ~/neovim \
