@@ -23,7 +23,7 @@ ENV USERPWD ${password}
 
 # Add new user with our credentials
 RUN useradd -m $USERNAME && \
-  echo "$USERNAME:$USERNAME" | chpasswd && \
+  echo "$USERNAME:$USERPWD" | chpasswd && \
   usermod --shell /bin/bash $USERNAME && \
   usermod  --uid ${uid} $USERNAME && \
   groupmod --gid ${gid} $USERNAME \
