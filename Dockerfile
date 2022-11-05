@@ -76,10 +76,8 @@ COPY --chown=${user}:${user} .bash_1ststart /home/${user}
 RUN git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles \
   && cd ~/.config/.dotfiles/settings \
   && stow --target=/home/${user} -S stow w_o_nvimlua \
-  # Packer.vim installation and Installation of Neovim Packages
-  && git clone --depth 1 https://github.com/wbthomason/packer.nvim\
-  ~/.local/share/nvim/site/pack/packer/start/packer.nvim \
-  && nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync' \
+  # Install neovim plugin
+  && nvim --headless -c 'autocmd User PackerComplete quitall' \
   # Remove dotfiles after image build, it will be mounted later from host with volume
   && rm -rf ~/.config/.dotfiles
 
