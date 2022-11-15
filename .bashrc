@@ -10,8 +10,8 @@ export EDITOR=nvim
 
 export DOTFILES=$HOME/.config/.dotfiles
 
-if [ -e $HOME/.bash_1ststart ]; then
-    source $HOME/.bash_1ststart
+if [ -e $HOME/.config/nvim/package ]; then
+    source $HOME/.config/nvim/package
 fi
 
 # If not running interactively, don't do anything
