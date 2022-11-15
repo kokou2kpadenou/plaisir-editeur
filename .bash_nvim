@@ -4,6 +4,10 @@
 # DOTFILES = $HOME/.config/.dotfiles
 # DNVIM_XAUTH = /tmp/.docker.xauth
 # DNVIM_WRKDIR = $HOME/Documents
+V_DOTFILES=${DOTFILES:=$HOME/.config/.dotfiles}
+V_WRKDIR=${DNVIM_WRKDIR:=$HOME/Documents}
+V_MEMORY=${DNVIM_MEMORY:=2g}
+V_CPU=${DNVIM_CPU:=2}
 
 # create_xauth_saint: create a xauth file with access permission
 create_xauth_saint(){
@@ -28,9 +32,12 @@ run_container_saint(){
   if [[ -n $DNVIM_XAUTH ]]; then
     docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
       || docker network create --driver bridge le_saint_esprit \
-      && docker run -dit --network=le_saint_esprit --restart unless-stopped --name saint -h saint \
-      -v ${DNVIM_WRKDIR}:/home/$USER/Documents \
-      -v ${DOTFILES}:/home/$USER/.config/.dotfiles \
+      && docker run -dit --network=le_saint_esprit \
+      -m $V_MEMORY --memory-reservation=1g \
+      --cpus=$V_CPU \
+      --restart unless-stopped --name saint -h saint \
+      -v ${V_WRKDIR}:/home/$USER/Documents \
+      -v ${V_DOTFILES}:/home/$USER/.config/.dotfiles \
       -e DISPLAY=unix$DISPLAY \
       -v /tmp/.X11-unix:/tmp/.X11-unix \
       -v $DNVIM_XAUTH:${DNVIM_XAUTH}:rw -e XAUTHORITY=$DNVIM_XAUTH \
@@ -38,9 +45,12 @@ run_container_saint(){
   else
     docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
       || docker network create --driver bridge le_saint_esprit \
-      && docker run -dit --network=le_saint_esprit --restart unless-stopped --name saint -h saint \
-      -v ${DNVIM_WRKDIR}:/home/$USER/Documents \
-      -v ${DOTFILES}:/home/$USER/.config/.dotfiles \
+      && docker run -dit --network=le_saint_esprit \
+      -m $V_MEMORY --memory-reservation=1g \
+      --cpus=$V_CPU \
+      --restart unless-stopped --name saint -h saint \
+      -v ${V_WRKDIR}:/home/$USER/Documents \
+      -v ${V_DOTFILES}:/home/$USER/.config/.dotfiles \
       -e XDG_RUNTIME_DIR=/tmp \
       -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
       -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY \
@@ -78,9 +88,6 @@ else
   #       * -c, -o, --startuptime etc (neovim options)
   #       * help to display options we have. ie. ChangeLualine
   dnvim(){
-    # TODO: Check if the following env variables are set: DOTFILES, DNVIM_XAUTH, DNVIM_WRKDIR
-    #       In case there are mot set interrumpt the script et ask the user to set those env variables
-    #       or source .bashrc
     start_saint
     docker exec -it saint bash -c ". ~/.bashrc && cd ~/Documents/$@ && nvim"
   }
