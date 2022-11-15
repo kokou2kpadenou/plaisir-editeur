@@ -3,9 +3,7 @@ FROM debian:stable-slim AS base
 # Change shell to bash
 SHELL ["/bin/bash", "-ec"]
 
-# Set image locale
-RUN apt-get update && apt-get install -y locales && rm -rf /var/lib/apt/lists/* \
-	&& localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+# Set image locale env variables
 ENV LANG en_US.utf8
 ENV TZ=America/New_York
 ENV LANGUAGE en_US:en  
@@ -20,17 +18,16 @@ ARG uid
 ARG gid
 ARG password
 
-ENV USERNAME ${user}
-ENV USERPWD ${password}
-
-# Add new user with our credentials
-RUN useradd -m $USERNAME && \
-  echo "$USERNAME:$USERPWD" | chpasswd && \
-  usermod --shell /bin/bash $USERNAME && \
-  usermod  --uid ${uid} $USERNAME && \
-  groupmod --gid ${gid} $USERNAME \
+# Set image locale
+RUN apt update && apt install -y locales \
+  && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
+  # Add new user with our credentials
+  && useradd -m ${user} && \
+  echo "${user}:${password}" | chpasswd && \
+  usermod --shell /bin/bash ${user} && \
+  usermod  --uid ${uid} ${user} && \
+  groupmod --gid ${gid} ${user} \
   # Update debian and install needed packages
-  && apt update \
   && apt install -y \
   bash \
   git \
@@ -39,6 +36,7 @@ RUN useradd -m $USERNAME && \
   ripgrep \
   fd-find \
   xsel \
+  wl-clipboard \
   ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen \
   postgresql-client default-mysql-client \
   # sqlite3 libsqlite3-dev \ TOBE: remove
@@ -55,24 +53,21 @@ RUN useradd -m $USERNAME && \
   && apt-get autoclean -y \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/* \
-  && echo "root:$USERPWD" | chpasswd
+  && echo "root:${password}" | chpasswd
 
 USER ${user}
 
 # PATH
 ENV PATH=~/.go/bin:~/go/bin:$PATH
 
-# Install Go and gopls
-RUN wget -q -O - https://git.io/vQhTU | bash -s -- --version 1.19 \
-  && go install golang.org/x/tools/gopls@latest
-
 # bashrc
 COPY --chown=${user}:${user} .bashrc /home/${user}
-# bash_1ststart
-COPY --chown=${user}:${user} .bash_1ststart /home/${user}
 
-# Clone dotfile from github repo and Creation of links
-RUN git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles \
+# Install Go and gopls
+RUN wget -q -O - https://git.io/vQhTU | bash -s -- --version 1.19 \
+  && go install golang.org/x/tools/gopls@latest \
+  # Clone dotfile from github repo and Creation of links
+  && git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles \
   && cd ~/.config/.dotfiles/settings \
   && stow --target=/home/${user} -S stow w_o_nvimlua \
   # Install neovim plugin
