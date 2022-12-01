@@ -39,7 +39,6 @@ RUN apt update && apt install -y locales \
   wl-clipboard \
   ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen \
   postgresql-client default-mysql-client \
-  # sqlite3 libsqlite3-dev \ TOBE: remove
   # compile neovim
   && git clone https://github.com/neovim/neovim.git ~/neovim \
   && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install && rm -rf ~/neovim \
@@ -48,11 +47,12 @@ RUN apt update && apt install -y locales \
   # pnpm
   && runuser - ${user} -c 'export PNPM_HOME=$HOME/.local/share/pnpm && export PATH=$PNPM_HOME:$PATH && curl -fsSL https://get.pnpm.io/install.sh | bash - && cd $HOME/.local/share/pnpm && pnpm env use --global lts' \
   # clean up
-  && apt purge ninja-build gettext libtool libtool-bin autoconf automake cmake pkg-config unzip doxygen -y \
+  && apt purge ninja-build gettext libtool libtool-bin autoconf automake cmake pkg-config unzip doxygen curl -y \
   && apt-get clean -y \
   && apt-get autoclean -y \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /tmp/* \
   && echo "root:${password}" | chpasswd
 
 USER ${user}
