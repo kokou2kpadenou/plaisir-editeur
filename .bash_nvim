@@ -93,12 +93,23 @@ if [[ ! -z "$(compgen -c | grep "^dnvim$")" ]]
 then
   echo "The command 'dnvim' already exists."
 else
-  # TODO: Add options and helps 
-  #       * -c, -o, --startuptime etc (neovim options)
-  #       * help to display options we have. ie. ChangeLualine
   dnvim(){
     start_saint
-    docker exec -it saint bash -c ". ~/.bashrc && cd ~/Documents/$@ && nvim"
+    FOLDER=$1
+    if [ $# -gt 0 ]; then
+      shift
+    fi
+
+    if [[ "$FOLDER" = "-" ]]; then
+      docker exec -it saint bash -c ". ~/.bashrc && nvim $@"
+      return
+    fi
+    
+    if [[ -d /home/${USER}/Documents/$FOLDER ]]; then
+      docker exec -it -w /home/${USER}/Documents/$FOLDER saint bash -c ". ~/.bashrc && nvim $@"
+    else
+      echo "Folder does not exist in the working directory."
+    fi
   }
 
   # Bash completion
