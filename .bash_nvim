@@ -1,9 +1,13 @@
 #!/bin/bash
 #
-# Env variables to set: DOTFILES, DNVIM_XAUTH, DNVIM_WRKDIR
+# Env variables to set: DOTFILES, DNVIM_XAUTH, DNVIM_WRKDIR, DNVIM_MEMORY, DNVIM_CPU
 # DOTFILES = $HOME/.config/.dotfiles
-# DNVIM_XAUTH = /tmp/.docker.xauth
+# DNVIM_XAUTH = /tmp/.docker.xauth -- Set when using X11
 # DNVIM_WRKDIR = $HOME/Documents
+# DNVIM_MEMORY = 2g
+# DNVIM_CPU = 2
+
+
 V_DOTFILES=${DOTFILES:=$HOME/.config/.dotfiles}
 V_WRKDIR=${DNVIM_WRKDIR:=$HOME/Documents}
 V_MEMORY=${DNVIM_MEMORY:=2g}
@@ -28,36 +32,41 @@ run_container_saint(){
   #       * Block all traffics to others dockers
   #       * Restrict traffics to internet
 
-  # TODO: Make this block of code DRY
+  DOCKER_RUN_OPTIONS=(
+    docker run -dit --network=le_saint_esprit
+    -m $V_MEMORY --memory-reservation=1g
+    --cpus=$V_CPU
+    --restart unless-stopped --name saint -h saint
+    -v "${V_WRKDIR}:/home/$USER/Documents"
+    -v "${V_DOTFILES}:/home/$USER/.config/.dotfiles"
+  )
+
   if [[ -n $DNVIM_XAUTH ]]; then
-    docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
-      || docker network create --driver bridge le_saint_esprit \
-      && docker run -dit --network=le_saint_esprit \
-      -m $V_MEMORY --memory-reservation=1g \
-      --cpus=$V_CPU \
-      --restart unless-stopped --name saint -h saint \
-      -v ${V_WRKDIR}:/home/$USER/Documents \
-      -v ${V_DOTFILES}:/home/$USER/.config/.dotfiles \
-      -e DISPLAY=unix$DISPLAY \
-      -v /tmp/.X11-unix:/tmp/.X11-unix \
-      -v $DNVIM_XAUTH:${DNVIM_XAUTH}:rw -e XAUTHORITY=$DNVIM_XAUTH \
-      saint:latest bash
+
+    # X11
+    DOCKER_RUN_OPTIONS+=(
+      -e "DISPLAY=unix$DISPLAY"
+      -v "/tmp/.X11-unix:/tmp/.X11-unix"
+      -v "$DNVIM_XAUTH:${DNVIM_XAUTH}:rw" -e "XAUTHORITY=$DNVIM_XAUTH"
+    )
+
   else
-    docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
-      || docker network create --driver bridge le_saint_esprit \
-      && docker run -dit --network=le_saint_esprit \
-      -m $V_MEMORY --memory-reservation=1g \
-      --cpus=$V_CPU \
-      --restart unless-stopped --name saint -h saint \
-      -v ${V_WRKDIR}:/home/$USER/Documents \
-      -v ${V_DOTFILES}:/home/$USER/.config/.dotfiles \
-      -e XDG_RUNTIME_DIR=/tmp \
-      -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
-      -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY \
-      saint:latest bash
+
+    # WAYLAND
+    DOCKER_RUN_OPTIONS+=(
+      -e "XDG_RUNTIME_DIR=/tmp"
+      -e "WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+      -v "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY"
+    )
+
   fi
 
-  }
+  DOCKER_RUN_OPTIONS+=("saint:latest" bash)
+
+  docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
+    || docker network create --driver bridge le_saint_esprit \
+    && "${DOCKER_RUN_OPTIONS[@]}"
+ }
 
 
 # start_saint: run or start container saint
