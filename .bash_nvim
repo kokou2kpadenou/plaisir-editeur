@@ -1,47 +1,89 @@
 #!/bin/bash
+#
+# Env variables to set: DOTFILES, DNVIM_XAUTH, DNVIM_WRKDIR, DNVIM_MEMORY, DNVIM_CPU
+# DOTFILES = $HOME/.config/.dotfiles
+# DNVIM_XAUTH = /tmp/.docker.xauth -- Set when using X11
+# DNVIM_WRKDIR = $HOME/Documents
+# DNVIM_MEMORY = 2g
+# DNVIM_CPU = 2
+
+
+V_DOTFILES=${DOTFILES:=$HOME/.config/.dotfiles}
+V_WRKDIR=${DNVIM_WRKDIR:=$HOME/Documents}
+V_MEMORY=${DNVIM_MEMORY:=2g}
+V_CPU=${DNVIM_CPU:=2}
 
 # create_xauth_saint: create a xauth file with access permission
 create_xauth_saint(){
-  # delete any folder with the same name
-  sudo \rm -rf /tmp/.docker.xauth/
-  # create a xauth file with access permission
-  xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f /tmp/.docker.xauth nmerge -
+  if [[ -n $DNVIM_XAUTH ]]; then
+    # delete any folder with the same name
+    sudo rm -rf $DNVIM_XAUTH
+    # create a xauth file with access permission
+    xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $DNVIM_XAUTH nmerge - &> /dev/null
+  fi
 }
 
 
 # run_container_saint: run the docker
 run_container_saint(){
+  # TODO: Security
+  #       * block all traffic from host to docker
+  #       * block all traffics to host
+  #       * Block all traffics to others dockers
+  #       * Restrict traffics to internet
+
+  DOCKER_RUN_OPTIONS=(
+    docker run -dit --network=le_saint_esprit
+    -m $V_MEMORY --memory-reservation=1g
+    --cpus=$V_CPU
+    --restart unless-stopped --name saint -h saint
+    -v "${V_WRKDIR}:/home/$USER/Documents"
+    -v "${V_DOTFILES}:/home/$USER/.config/.dotfiles"
+  )
+
+  if [[ -n $DNVIM_XAUTH ]]; then
+
+    # X11
+    DOCKER_RUN_OPTIONS+=(
+      -e "DISPLAY=unix$DISPLAY"
+      -v "/tmp/.X11-unix:/tmp/.X11-unix"
+      -v "$DNVIM_XAUTH:${DNVIM_XAUTH}:rw" -e "XAUTHORITY=$DNVIM_XAUTH"
+    )
+
+  else
+
+    # WAYLAND
+    DOCKER_RUN_OPTIONS+=(
+      -e "XDG_RUNTIME_DIR=/tmp"
+      -e "WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+      -v "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY"
+    )
+
+  fi
+
+  DOCKER_RUN_OPTIONS+=("saint:latest" bash)
+
   docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
     || docker network create --driver bridge le_saint_esprit \
-  && docker run -dit --network=le_saint_esprit --restart unless-stopped --name saint -h saint \
-    -e DISPLAY=unix$DISPLAY \
-    -v /home/$USER/Documents:/home/$USER/Documents \
-    -v /home/$USER/.config/.dotfiles:/home/$USER/.config/.dotfiles \
-    -v /tmp/.X11-unix:/tmp/.X11-unix \
-    -v /tmp/.docker.xauth:/tmp/.docker.xauth:rw -e XAUTHORITY=/tmp/.docker.xauth \
-    saint:latest bash  
-}
+    && "${DOCKER_RUN_OPTIONS[@]}"
+ }
 
 
 # start_saint: run or start container saint
 start_saint(){
   container_exist=$( docker ps -a -f name=saint | grep saint 2> /dev/null )
- 
+
   if [[ ! -z ${container_exist} ]]; then 
     container_exited=$( docker ps -a -f status=exited | grep saint 2> /dev/null )
     if [[ ! -z ${container_exited} ]]; then
-
       create_xauth_saint
-
       # restart container saint
       docker container start saint
     fi
-
   else
-
     create_xauth_saint
-
-    run_container_saint
+    # create container saint
+    run_container_saint  >/dev/null 2>&1
   fi
 }
 
@@ -53,23 +95,29 @@ then
 else
   dnvim(){
     start_saint
-    docker exec -it saint bash -c ". ~/.bashrc && cd ~/Documents/$@ && nvim"
+    FOLDER=$1
+    if [ $# -gt 0 ]; then
+      shift
+    fi
+
+    if [[ "$FOLDER" = "-" ]]; then
+      docker exec -it saint bash -c ". ~/.bashrc && nvim $@"
+      return
+    fi
+    
+    if [[ -d /home/${USER}/Documents/$FOLDER ]]; then
+      docker exec -it -w /home/${USER}/Documents/$FOLDER saint bash -c ". ~/.bashrc && nvim $@"
+    else
+      echo "Folder does not exist in the working directory."
+    fi
   }
 
+  # Bash completion
   dn_from_dir(){
     cd ~/Documents
   }
 
   complete -d -F dn_from_dir dnvim
+
+  # TODO: Zsh completion
 fi
-
-
-# dmaint : access neovim docker shell for maintenance
-[[ ! -z "$(compgen -c | grep "^dmaint$")" ]] \
-  && echo "The command 'dmaint' already exists." \
-  && exit
-
-dmaint(){
-  start_saint
-  docker exec -it saint bash
-}

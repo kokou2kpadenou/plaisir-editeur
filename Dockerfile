@@ -1,127 +1,78 @@
-#
-FROM debian:latest AS base
-
-# Update debian and install needed packages
-RUN apt update && apt upgrade -y \
-  && apt install -y \
-  locales \
-  bash \
-  sudo \
-  git \
-  wget \
-  bash-completion \
-  stow \
-  ripgrep \
-  fd-find \
-  xsel \
-  ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen \
-  postgresql-client default-mysql-client \
-  sqlite3 libsqlite3-dev
+FROM debian:stable-slim AS base
 
 # Change shell to bash
 SHELL ["/bin/bash", "-ec"]
 
-# Set image locale
+# Set image locale env variables
+ENV LANG en_US.utf8
 ENV TZ=America/New_York
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
-ENV LANG en_US.UTF-8  
 ENV LANGUAGE en_US:en  
 ENV LC_ALL en_US.UTF-8  
 
 # Build neovim
 ARG VERSION=master
-RUN git clone https://github.com/neovim/neovim.git ~/neovim \
-  && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install && rm -rf ~/neovim
 
 # Arguments picked from the command line!
 ARG user
 ARG uid
 ARG gid
+ARG password
 
-# Add new user with our credentials
-ENV USERNAME ${user}
-RUN useradd -m $USERNAME && \
-        echo "$USERNAME:$USERNAME" | chpasswd && \
-        usermod --shell /bin/bash $USERNAME && \
-        usermod  --uid ${uid} $USERNAME && \
-        groupmod --gid ${gid} $USERNAME
+# Set image locale
+RUN apt update && apt install -y locales \
+  && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
+  # Add new user with our credentials
+  && useradd -m ${user} && \
+  echo "${user}:${password}" | chpasswd && \
+  usermod --shell /bin/bash ${user} && \
+  usermod  --uid ${uid} ${user} && \
+  groupmod --gid ${gid} ${user} \
+  # Update debian and install needed packages
+  && apt install -y \
+  bash \
+  git \
+  wget \
+  stow \
+  ripgrep \
+  fd-find \
+  xsel \
+  wl-clipboard \
+  ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen \
+  postgresql-client default-mysql-client \
+  # compile neovim
+  && git clone https://github.com/neovim/neovim.git ~/neovim \
+  && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install && rm -rf ~/neovim \
+  # Install Lua Language Sever
+  && runuser - ${user} -c 'mkdir -p $HOME/.local && cd $HOME/.local && git clone --recursive https://github.com/sumneko/lua-language-server && cd lua-language-server/3rd/luamake && ./compile/install.sh && cd ../.. && ./3rd/luamake/luamake rebuild && rm -rf 3rd test log .git*' \
+  # pnpm
+  && runuser - ${user} -c 'export PNPM_HOME=$HOME/.local/share/pnpm && export PATH=$PNPM_HOME:$PATH && curl -fsSL https://get.pnpm.io/install.sh | bash - && cd $HOME/.local/share/pnpm && pnpm env use --global lts' \
+  # clean up
+  && apt purge ninja-build gettext libtool libtool-bin autoconf automake cmake pkg-config unzip doxygen curl -y \
+  && apt-get clean -y \
+  && apt-get autoclean -y \
+  && apt-get autoremove -y \
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /tmp/* \
+  && echo "root:${password}" | chpasswd
 
 USER ${user}
 
-# Install Lua Language Sever
-RUN mkdir -p ~/.local \
-  && cd ~/.local \
-  && git clone --recursive https://github.com/sumneko/lua-language-server \
-  && cd lua-language-server/3rd/luamake \
-  && ./compile/install.sh \
-  && cd ../.. \
-  && ./3rd/luamake/luamake rebuild \
-  && cd ~
-
 # PATH
-ENV PATH=~/.cargo/bin:~/.go/bin:~/go/bin:$PATH
+ENV PATH=~/.go/bin:~/go/bin:$PATH
 
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-
-# Install Go
-RUN wget -q -O - https://git.io/vQhTU | bash -s -- --version 1.19
-
-# stylua
-RUN cargo install stylua
-
-# gopls
-RUN go install golang.org/x/tools/gopls@latest
-
-# NVM (nodejs) and some lsp base on nodejs
-ARG VERSION_OF_NVM=v0.39.1
-RUN touch ~/.bashrc && chmod +x ~/.bashrc \
-  && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/${VERSION_OF_NVM}/install.sh | bash
-RUN . ~/.nvm/nvm.sh \
-  && source ~/.bashrc \
-  && nvm install node \
-  && nvm use node \
-  && nvm alias default node \
-  && npm i -g npm@latest \
-  # Lsp: tsserver, (cssls, html, json), yaml, eslint, formatter:efm(prettier, stylelint, alex), bashls, tailwindcss,
-  # astrojs, dockerfile
-  && npm i -g \
-  typescript typescript-language-server \
-  vscode-langservers-extracted \
-  yaml-language-server \
-  eslint \
-  @fsouza/prettierd \
-  stylelint \
-  alex \
-  bash-language-server \
-  @tailwindcss/language-server \
-  @astrojs/language-server \
-  dockerfile-language-server-nodejs \
-  cssmodules-language-server \
-  emmet-ls
-
-# Clone dotfile from github repo and Creation of link
-RUN git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles \
-  && cd ~/.config/.dotfiles/settings \
-  && stow --target=/home/${user} -S stow w_o_nvimlua efm-langserver bash
-
-# bashrc file completion
+# bashrc
 COPY --chown=${user}:${user} .bashrc /home/${user}
 
-# Enables tab-completion in all npm commands
-RUN source ~/.bashrc && npm completion >> ~/.bashrc
+# Install Go and gopls
+RUN wget -q -O - https://git.io/vQhTU | bash -s -- --version 1.19 \
+  && go install golang.org/x/tools/gopls@latest \
+  # Clone dotfile from github repo and Creation of links
+  && git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles \
+  && cd ~/.config/.dotfiles/settings \
+  && stow --target=/home/${user} -S stow w_o_nvimlua \
+  # Install neovim plugin
+  && nvim --headless -c 'autocmd User PackerComplete quitall' \
+  # Remove dotfiles after image build, it will be mounted later from host with volume
+  && rm -rf ~/.config/.dotfiles
 
-# Packer.vim installation and Installation of Neovim Packages
-RUN git clone --depth 1 https://github.com/wbthomason/packer.nvim\
-  ~/.local/share/nvim/site/pack/packer/start/packer.nvim \
-  && nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
-
-# TODO: Treesitter parser installation
-# Try to install treesitter parser, but not working
-# RUN nvim --headless +TSUpdate +qa
-
-# Remove dotfiles after image build, it will be mounted later from host with volume
-RUN rm -rf ~/.config/.dotfiles
-# RUN sudo apt purge golang
-#
 WORKDIR /home/${user}/Documents
