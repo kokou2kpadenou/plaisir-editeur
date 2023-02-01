@@ -6,8 +6,8 @@ SHELL ["/bin/bash", "-ec"]
 # Set image locale env variables
 ENV LANG en_US.utf8
 ENV TZ=America/New_York
-ENV LANGUAGE en_US:en  
-ENV LC_ALL en_US.UTF-8  
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
 
 # Build neovim
 ARG VERSION=master
@@ -38,6 +38,8 @@ RUN apt update && apt install -y locales \
   xsel \
   wl-clipboard \
   ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen \
+  # uuid-runtme Needed for codeium to work
+  uuid-runtime \
   postgresql-client default-mysql-client \
   # compile neovim
   && git clone https://github.com/neovim/neovim.git ~/neovim \
@@ -47,7 +49,7 @@ RUN apt update && apt install -y locales \
   # pnpm
   && runuser - ${user} -c 'export PNPM_HOME=$HOME/.local/share/pnpm && export PATH=$PNPM_HOME:$PATH && curl -fsSL https://get.pnpm.io/install.sh | bash - && cd $HOME/.local/share/pnpm && pnpm env use --global lts' \
   # clean up
-  && apt purge ninja-build gettext libtool libtool-bin autoconf automake cmake pkg-config unzip doxygen curl -y \
+  && apt purge ninja-build gettext libtool libtool-bin autoconf automake cmake pkg-config unzip doxygen -y \
   && apt-get clean -y \
   && apt-get autoclean -y \
   && apt-get autoremove -y \
