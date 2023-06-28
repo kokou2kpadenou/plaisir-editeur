@@ -44,8 +44,6 @@ RUN apt update && apt install -y locales \
   # compile neovim
   && git clone https://github.com/neovim/neovim.git ~/neovim \
   && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install && rm -rf ~/neovim \
-  # Install Lua Language Sever
-  && runuser - ${user} -c 'mkdir -p $HOME/.local && cd $HOME/.local && git clone --recursive https://github.com/sumneko/lua-language-server && cd lua-language-server/3rd/luamake && ./compile/install.sh && cd ../.. && ./3rd/luamake/luamake rebuild && rm -rf 3rd test log .git*' \
   # pnpm
   && runuser - ${user} -c 'export PNPM_HOME=$HOME/.local/share/pnpm && export PATH=$PNPM_HOME:$PATH && curl -fsSL https://get.pnpm.io/install.sh | bash - && cd $HOME/.local/share/pnpm && pnpm env use --global lts' \
   # clean up
@@ -64,16 +62,15 @@ ENV PATH=~/.go/bin:~/go/bin:$PATH
 
 # bashrc
 COPY --chown=${user}:${user} .bashrc /home/${user}
+COPY --chown=${user}:${user} scripts /home/${user}/scripts
 
 # Install Go and gopls
-RUN wget -q -O - https://git.io/vQhTU | bash -s -- --version 1.19 \
+RUN bash ~/scripts/luals.sh && bash ~/scripts/golang_installer.sh \
   && go install golang.org/x/tools/gopls@latest \
   # Clone dotfile from github repo and Creation of links
   && git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles \
   && cd ~/.config/.dotfiles/settings \
   && stow --target=/home/${user} -S stow w_o_nvimlua \
-  # Install neovim plugin
-  && nvim --headless -c 'autocmd User PackerComplete quitall' \
   # Remove dotfiles after image build, it will be mounted later from host with volume
   && rm -rf ~/.config/.dotfiles
 
