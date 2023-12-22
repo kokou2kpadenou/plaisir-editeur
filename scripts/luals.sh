@@ -39,6 +39,8 @@ RELEASE=$(curl --silent "https://api.github.com/repos/LuaLS/lua-language-server/
 
 DOWNLOAD_URL="https://github.com/LuaLS/lua-language-server/releases/download/$RELEASE/lua-language-server-$RELEASE-$PLATFORM-$ARCH.tar.gz"
 
+#echo "$DOWNLOAD_URL"
+
 
 curl -L -o "lua-language-server-$PLATFORM-$ARCH.tar.gz" "$DOWNLOAD_URL"
 

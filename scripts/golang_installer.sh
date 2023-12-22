@@ -37,11 +37,11 @@ else
 fi
 
 # Download latest release
-RELEASE=$(curl --silent 'https://go.dev/VERSION?m=text')
-echo $RELEASE
+RELEASE=$(curl --silent 'https://go.dev/VERSION?m=text' | head -n 1)
+#echo $RELEASE
 
 DOWNLOAD_URL="https://dl.google.com/go/$RELEASE.$PLATFORM-$ARCH.tar.gz"
-# echo $DOWNLOAD_URL
+#echo $DOWNLOAD_URL
 curl -o "go.tar.gz" "$DOWNLOAD_URL"
 
 if [[ $? -ne 0 ]]; then
