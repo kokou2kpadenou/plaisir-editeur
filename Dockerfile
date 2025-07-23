@@ -4,10 +4,10 @@ FROM debian:stable-slim AS base
 SHELL ["/bin/bash", "-ec"]
 
 # Set image locale env variables
-ENV LANG en_US.utf8
+ENV LANG=en_US.utf8
 ENV TZ=America/New_York
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 
 # Build neovim
 ARG VERSION=master
