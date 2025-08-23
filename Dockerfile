@@ -16,14 +16,14 @@ ARG VERSION=master
 ARG user
 ARG uid
 ARG gid
-ARG password
+ARG mkey
 
 # Set image locale
 RUN apt update && apt install -y locales \
   && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
   # Add new user with our credentials
   && useradd -m ${user} && \
-  echo "${user}:${password}" | chpasswd && \
+  echo "${user}:${mkey}" | chpasswd && \
   usermod --shell /bin/bash ${user} && \
   usermod  --uid ${uid} ${user} && \
   groupmod --gid ${gid} ${user} \
@@ -53,7 +53,7 @@ RUN apt update && apt install -y locales \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/* \
   && rm -rf /tmp/* \
-  && echo "root:${password}" | chpasswd
+  && echo "root:${mkey}" | chpasswd
 
 USER ${user}
 

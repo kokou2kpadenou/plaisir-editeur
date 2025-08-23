@@ -21,4 +21,4 @@ done
 
 
 # buid the image
-docker build --build-arg user=$USER --build-arg password="${password}" --build-arg uid=$(id -u) --build-arg gid=$(id -g) -t saint .
+docker build --build-arg user=$USER --build-arg mkey="${password}" --build-arg uid=$(id -u) --build-arg gid=$(id -g) -t saint .
