@@ -1,8 +1,10 @@
 # ~/.bashrc
 
+export SHELL=bash
+
 export PNPM_HOME=$HOME/.local/share/pnpm
 
-export PATH=$PATH:$HOME/.local/share/pnpm:$HOME/.local/lua-language-server/bin:$HOME/.go/bin:$HOME/go/bin:$HOME/.cargo/bin
+export PATH=$PATH:$HOME/.local/share/pnpm/bin:$HOME/.local/lua-language-server/bin:$HOME/.go/bin:$HOME/go/bin:$HOME/.cargo/bin
 
 export SETTINGS=$HOME/.config/.dotfiles/settings/w_o_nvimlua/.config/nvim
 

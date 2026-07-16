@@ -34,8 +34,8 @@ run_container_saint(){
 
   DOCKER_RUN_OPTIONS=(
     docker run -dit --network=le_saint_esprit
-    -m $V_MEMORY --memory-reservation=1g
-    --cpus=$V_CPU
+    # -m $V_MEMORY --memory-reservation=1g
+    # --cpus=$V_CPU
     --restart unless-stopped --name saint -h saint
     -v "${V_WRKDIR}:/home/$USER/Documents"
     -v "${V_DOTFILES}:/home/$USER/.config/.dotfiles"
@@ -50,7 +50,7 @@ run_container_saint(){
       -v "$DNVIM_XAUTH:${DNVIM_XAUTH}:rw" -e "XAUTHORITY=$DNVIM_XAUTH"
     )
 
-  else
+  elif [[ -n $WAYLAND_DISPLAY ]]; then
 
     # WAYLAND
     DOCKER_RUN_OPTIONS+=(
@@ -118,11 +118,11 @@ else
   }
 
   # Bash completion
-  dn_from_dir(){
-    cd ~/Documents
-  }
+  # dn_from_dir(){
+  #   cd ~/Documents
+  # }
 
-  complete -d -F dn_from_dir dnvim
+  # complete -d -F dn_from_dir dnvim
 
   # TODO: Zsh completion
 fi
