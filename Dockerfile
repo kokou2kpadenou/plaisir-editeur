@@ -45,7 +45,11 @@ RUN apt update && apt install -y locales \
   && git clone https://github.com/neovim/neovim.git ~/neovim \
   && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install && rm -rf ~/neovim \
   # pnpm
-  && runuser - ${user} -c 'export PNPM_HOME=$HOME/.local/share/pnpm && export PATH=$PNPM_HOME:$PATH && curl -fsSL https://get.pnpm.io/install.sh | bash - && cd $HOME/.local/share/pnpm && pnpm env use --global lts' \
+  && runuser - ${user} -c 'export PNPM_HOME="$HOME/.local/share/pnpm" && export PATH="$PNPM_HOME/bin:$PATH" \
+  # && curl -fsSL https://get.pnpm.io/install.sh | bash - \
+  && wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash - \
+  && cd $HOME/.local/share/pnpm/bin \
+  && pnpm runtime set node lts -g' \
   # clean up
   && apt purge ninja-build gettext libtool libtool-bin autoconf automake cmake pkg-config unzip doxygen -y \
   && apt-get clean -y \
