@@ -1,0 +1,11 @@
+#compdef dnvim
+
+local context state line
+
+_arguments -C \
+  '(-h --help)'{-h,--help}'[show help]' \
+  '(-c --cwd)'{-c,--cwd}'[open from current host directory]' \
+  '(-r --root)'{-r,--root}'[open the container home directory]' \
+  '(-d --docs)'{-d,--docs}'[open a directory under ~/Documents]:directory:_files -W ~/Documents -/' \
+  '--config[open a configuration directory]:config:(dotfiles editor neovim)' \
+  '*:file:_files'

@@ -8,10 +8,16 @@
 # DNVIM_CPU = 2
 
 
-V_DOTFILES=${DOTFILES:=$HOME/.config/.dotfiles}
-V_WRKDIR=${DNVIM_WRKDIR:=$HOME/Documents}
-V_MEMORY=${DNVIM_MEMORY:=2g}
-V_CPU=${DNVIM_CPU:=2}
+V_HOST_DOTFILES=${DOTFILES:=$HOME/.config/.dotfiles}
+V_CONT_DOTFILES="/home/$USER/${V_HOST_DOTFILES#$HOME/}"
+V_HOST_WRKDIR=${DNVIM_WRKDIR:=$HOME/Documents}
+V_CONT_WRKDIR="/home/$USER/${V_HOST_WRKDIR#$HOME/}"
+V_CONTAINER_NAME="saint"
+V_NETWORK_NAME="le_saint_esprit"
+
+# TODO: This two line will be deleted later
+# V_MEMORY=${DNVIM_MEMORY:=2g}
+# V_CPU=${DNVIM_CPU:=2}
 
 # create_xauth_saint: create a xauth file with access permission
 create_xauth_saint(){
@@ -26,19 +32,17 @@ create_xauth_saint(){
 
 # run_container_saint: run the docker
 run_container_saint(){
-  # TODO: Security
-  #       * block all traffic from host to docker
-  #       * block all traffics to host
-  #       * Block all traffics to others dockers
-  #       * Restrict traffics to internet
 
   DOCKER_RUN_OPTIONS=(
-    docker run -dit --network=le_saint_esprit
+    docker run -dit --network=$V_NETWORK_NAME
+
+    # TODO: This two line will be deleted later
     # -m $V_MEMORY --memory-reservation=1g
     # --cpus=$V_CPU
-    --restart unless-stopped --name saint -h saint
-    -v "${V_WRKDIR}:/home/$USER/Documents"
-    -v "${V_DOTFILES}:/home/$USER/.config/.dotfiles"
+
+    --restart unless-stopped --name $V_CONTAINER_NAME -h $V_CONTAINER_NAME
+    -v "${V_HOST_WRKDIR}:${V_CONT_WRKDIR}"
+    -v "${V_HOST_DOTFILES}:${V_CONT_DOTFILES}"
   )
 
   if [[ -n $DNVIM_XAUTH ]]; then
@@ -61,68 +65,230 @@ run_container_saint(){
 
   fi
 
-  DOCKER_RUN_OPTIONS+=("saint:latest" bash)
+  DOCKER_RUN_OPTIONS+=("${V_CONTAINER_NAME}:latest" bash)
 
-  docker network inspect le_saint_esprit --format {{.Id}} 2>/dev/null \
-    || docker network create --driver bridge le_saint_esprit \
+  # buid the image
+  DOCKER_BUILD_OPTIONS=(
+    docker build
+    -f "$V_HOST_DOTFILES/tools/plaisir-editeur/Dockerfile"
+    --build-arg user="$USER"
+    --build-arg uid="$(id -u)"
+    --build-arg gid="$(id -g)"
+    --build-arg dotfiles="$V_CONT_DOTFILES"
+    -t $V_CONTAINER_NAME
+    "$V_HOST_DOTFILES/tools/plaisir-editeur"
+  )
+  docker image inspect ${V_CONTAINER_NAME}:latest >/dev/null 2>&1 || "${DOCKER_BUILD_OPTIONS[@]}"
+  docker network inspect $V_NETWORK_NAME --format {{.Id}} 2>/dev/null \
+    || docker network create --driver bridge $V_NETWORK_NAME \
     && "${DOCKER_RUN_OPTIONS[@]}"
  }
 
 
-# start_saint: run or start container saint
+# start_saint: run or start container
 start_saint(){
-  container_exist=$( docker ps -a -f name=saint | grep saint 2> /dev/null )
+  container_exist=$( docker ps -a -f name=$V_CONTAINER_NAME | grep $V_CONTAINER_NAME 2> /dev/null )
 
   if [[ ! -z ${container_exist} ]]; then
-    container_exited=$( docker ps -a -f status=exited | grep saint 2> /dev/null )
+    container_exited=$( docker ps -a -f status=exited | grep $V_CONTAINER_NAME 2> /dev/null )
     if [[ ! -z ${container_exited} ]]; then
       create_xauth_saint
-      # restart container saint
-      docker container start saint
+      # restart container
+      docker container start $V_CONTAINER_NAME
     fi
   else
     create_xauth_saint
     # create container saint
-    run_container_saint  >/dev/null 2>&1
+    run_container_saint #>/dev/null 2>&1
   fi
 }
 
+# dnvim - Run Neovim inside the saint container.
 
-# dnvim: run neovim in docker
-if [[ ! -z "$(compgen -c | grep "^dnvim$")" ]]
-then
-  echo "The command 'dnvim' already exists."
+if command -v dnvim >/dev/null 2>&1; then
+    echo "The command 'dnvim' already exists."
 else
-  dnvim(){
-    start_saint
-    FOLDER=$1
-    if [ $# -gt 0 ]; then
-      shift
-    fi
 
-    if [[ "$FOLDER" = "-" ]]; then
-      docker exec -it saint bash -c ". ~/.bashrc && nvim $@"
-      return
-    fi
+dnvim() {
+    local container="$V_CONTAINER_NAME"
+    local workdir="$V_CONT_WRKDIR"
+    local hostdir="$V_HOST_WRKDIR"
+    local mode="root"
+    local nvim_args=()
 
-    if [[ "$FOLDER" = "." ]]; then
-      docker exec -it -w ${PWD} saint bash -c ". ~/.bashrc && nvim $@"
-      return
-    fi
+    local usage
+    usage=$(cat <<'EOF'
+Usage:
+  dnvim [OPTIONS] [--] [NVIM_ARGS...]
 
-    if [[ -d /home/${USER}/Documents/$FOLDER ]]; then
-      docker exec -it -w /home/${USER}/Documents/$FOLDER saint bash -c ". ~/.bashrc && nvim $@"
-    else
-      echo "Folder does not exist in the working directory."
-    fi
-  }
+Options:
+  -c, --cwd              Open Neovim from the current host directory
+  -d, --docs DIR         Open ~/Documents/DIR
+  -r, --root             Open the container home directory
+      --config NAME      Open a configuration directory
+                          (dotfiles | editor | neovim)
+  -h, --help             Show this help
 
-  # Bash completion
-  # dn_from_dir(){
-  #   cd ~/Documents
-  # }
+Default:
+  Without any option, Neovim starts in the container home directory.
 
-  # complete -d -F dn_from_dir dnvim
+Notes:
+  Any arguments not recognized by dnvim are passed directly to Neovim.
 
-  # TODO: Zsh completion
+Examples:
+  dnvim
+  dnvim file
+  dnvim file1 file2
+
+  dnvim --cwd
+  dnvim --cwd init.lua
+  dnvim --cwd -o file1 file2
+  dnvim --cwd -O file1 file2
+  dnvim --cwd +45 init.lua
+  dnvim --cwd +"set number" init.lua
+  dnvim --cwd --clean
+  dnvim --cwd -u NONE
+
+  dnvim --docs dotfiles
+  dnvim --docs dotfiles init.lua
+  dnvim --docs dotfiles -o init.lua lua/plugins.lua
+
+  dnvim --config dotfiles
+  dnvim --config editor
+  dnvim --config neovim
+
+  dnvim --root
+  dnvim --root +45 ~/.bashrc
+
+Use '--' to stop dnvim option parsing explicitly:
+
+  dnvim --cwd -- --clean
+EOF
+)
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                printf '%s\n' "$usage"
+                return 0
+                ;;
+
+            -c|--cwd)
+                mode="cwd"
+                shift
+                ;;
+
+            -r|--root)
+                mode="root"
+                shift
+                ;;
+
+            -d|--docs)
+                if [[ -z "$2" ]]; then
+                    echo "dnvim: missing folder after $1" >&2
+                    return 1
+                fi
+
+                mode="docs"
+                workdir="$V_CONT_WRKDIR/$2"
+                hostdir="$V_HOST_WRKDIR/$2"
+                shift 2
+                ;;
+
+            --config)
+                if [[ -z "$2" ]]; then
+                    echo "dnvim: missing value ("dotfiles", "editor", "neovim") after $1" >&2
+                    return 1
+                fi
+
+                mode="config"
+
+                case "$2" in
+                    dotfiles)
+                        workdir="$V_CONT_DOTFILES"
+                        ;;
+
+                    editor)
+                        workdir="$V_CONT_DOTFILES/tools/plaisir-editeur"
+                        ;;
+
+                    neovim)
+                        workdir="/home/$USER/.config/nvim"
+                        ;;
+
+                    *)
+                        echo "dnvim: invalid config: $2" >&2
+                        echo "Expected: dotfiles, editor, or neovim." >&2
+                        return 1
+                        ;;
+                esac
+
+                shift 2
+                ;;
+
+            *)
+                # Everything else belongs to nvim.
+                nvim_args=("$@")
+                break
+                ;;
+        esac
+    done
+
+    start_saint || return
+
+    case "$mode" in
+        root)
+            workdir="/home/$USER"
+            ;;
+
+        cwd)
+            # Resolve absolute canonical paths
+            local CANON_PARENT
+            local CANON_TARGET
+
+            CANON_PARENT=$(realpath "$hostdir")
+            CANON_TARGET=$(realpath "$PWD")
+
+            # Append a trailing slash to prevent partial name matching (e.g., /dir and /dir_extended)
+            if [[ "$CANON_TARGET/" == "$CANON_PARENT/"* ]]; then
+                # echo "Yes, target is inside the parent directory."
+                if [[ "$PWD" == "$HOME" ]]; then
+                    workdir="/home/$USER"
+                else
+                    workdir="/home/$USER/${PWD#$HOME/}"
+                fi
+
+            else
+                echo "current directory is not under: $hostdir" >&2
+                return 1
+            fi
+            ;;
+
+        docs)
+            if [[ ! -d "$hostdir" ]]; then
+                echo "dnvim: directory not found: $hostdir" >&2
+                return 1
+            fi
+            ;;
+
+        config)
+            nvim_args=(".")
+            ;;
+    esac
+
+    docker exec \
+        -it \
+        -w "$workdir" \
+        "$container" \
+        bash -lc 'nvim "$@"' -- "${nvim_args[@]}"
+
+        # TODO: Use multiple neovim config
+        # bash -lc 'NVIM_APPNAME=myconfig exec nvim "$@"' -- "${nvim_args[@]}"
+}
+
 fi
+
+# Auto Completion - zsh
+fpath=($DOTFILES/tools/plaisir-editeur/.zsh/completions $fpath)
+autoload -Uz compinit
+compinit
