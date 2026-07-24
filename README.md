@@ -1,63 +1,194 @@
 # plaisir-editeur
 
-Neovim development environment (neovim + language servers) for javascript, typescript and go development as a Docker image with clipboard support.
+A portable Neovim development environment running inside a Docker container with clipboard support, language servers, and a consistent development setup across machines.
 
 ## Goals
 
-The main goals are:
+The project aims to:
 
-- To easly deploy my development environment on different machine.
-- To safely separate plugins and language servers files in sandbox environment from my system file for security raisons.
+- Easily deploy the same development environment on different machines.
+- Isolate Neovim plugins, language servers, and development tools from the host system using Docker.
+- Keep the host system clean while providing a reproducible development environment.
 
-## How is it built?
+## Features
+
+- Neovim running inside Docker
+- Clipboard integration
+- JavaScript / TypeScript development
+- Go development
+- Language servers and tooling preconfigured
+- Easy access through the `dnvim` command
 
 ## Installation
 
-TODO: talk about dotfile
+### 1. Clone this repository
 
-First, clone these two repositories:
-
-To build the docker image
-
-```
-git clone https://github.com/kokou2kpadenou/plaisir-editeur.git ~/Documents/tools/plaisir-editeur
+```bash
+git clone https://github.com/kokou2kpadenou/plaisir-editeur.git \
+    ~/Documents/tools/plaisir-editeur
 ```
 
-Configuration files needed for the docker image to work. For more details see [dotfiles](https://github.com/kokou2kpadenou/dotfiles)
+### 2. Clone your dotfiles
 
-```
-git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles
-```
+The container relies on your dotfiles configuration.
 
-After cloning:
-
-```
-cd ~/Documents/tools/plaisir-editeur
+```bash
+git clone https://github.com/kokou2kpadenou/dotfiles.git \
+    ~/.config/.dotfiles
 ```
 
-and run:
+For more information, see the dotfiles repository:
 
-```
-sh build_image.sh
-```
+https://github.com/kokou2kpadenou/dotfiles
 
-The installation will take some time depending on the speed of your computer.
-After installation, add the following scripts to your bash (ex: .bashrc).
+### 3. Source the shell configuration
 
-```
-# Access neovim in docker
-if [ -e $HOME/Documents/tools/plaisir-editeur/.bash_nvim ]; then
-    source $HOME/Documents/tools/plaisir-editeur/.bash_nvim
+Add the following to your shell configuration (for example `~/.bashrc` or `~/.zshrc`):
+
+```bash
+# Docker Neovim
+if [ -e "$HOME/Documents/tools/plaisir-editeur/.bash_nvim" ]; then
+    source "$HOME/Documents/tools/plaisir-editeur/.bash_nvim"
 fi
 ```
 
+Restart your shell or reload your configuration:
+
+```bash
+source ~/.bashrc
+```
+
+or
+
+```bash
+source ~/.zshrc
+```
+
+## First Run
+
+Unlike previous versions, there is **no `build_image.sh` script**.
+
+The Docker image is automatically built (if necessary) when `start_saint` is executed. Since `dnvim` calls `start_saint` internally, simply running `dnvim` for the first time will:
+
+- build the image (if it does not already exist),
+- start the container,
+- launch Neovim.
+
+The initial build may take several minutes depending on your machine and internet connection.
 
 ## Usage
 
-```
-dnvim project/folder
+### Open Neovim in the container home
+
+```bash
+dnvim
 ```
 
+### Edit files
+
+```bash
+dnvim file
+dnvim file1 file2
 ```
-dmaint
+
+### Open from the current host directory
+
+```bash
+dnvim --cwd
+```
+
+Open specific files from the current directory:
+
+```bash
+dnvim --cwd init.lua
+dnvim --cwd -o file1 file2
+dnvim --cwd -O file1 file2
+dnvim --cwd +45 init.lua
+dnvim --cwd +"set number" init.lua
+```
+
+Any arguments that are not recognized by `dnvim` are forwarded directly to Neovim.
+
+### Open a folder under `~/Documents`
+
+```bash
+dnvim --docs project
+```
+
+Example:
+
+```bash
+dnvim --docs dotfiles
+dnvim --docs dotfiles init.lua
+```
+
+### Open configuration directories
+
+```bash
+dnvim --config dotfiles
+dnvim --config editor
+dnvim --config neovim
+```
+
+Available configuration targets:
+
+| Command | Opens |
+|---------|-------|
+| `dotfiles` | Your dotfiles repository |
+| `editor` | This repository (`plaisir-editeur`) |
+| `neovim` | Neovim configuration directory |
+
+### Open the container home directory
+
+```bash
+dnvim --root
+```
+
+### Display help
+
+```bash
+dnvim --help
+```
+
+## How `dnvim` Works
+
+`dnvim` automatically:
+
+1. Starts the Docker environment by calling `start_saint`.
+2. Builds the Docker image if it does not already exist.
+3. Starts the container if needed.
+4. Executes Neovim inside the container.
+
+You can therefore use `dnvim` directly without manually building or starting the environment.
+
+## Notes
+
+- `--cwd` only works when the current directory is inside your configured workspace.
+- Any unrecognized options are passed directly to Neovim.
+- Use `--` to explicitly stop `dnvim` option parsing.
+
+Example:
+
+```bash
+dnvim --cwd -- --clean
+```
+
+## Examples
+
+```bash
+dnvim
+
+dnvim main.go
+
+dnvim --cwd
+
+dnvim --cwd README.md
+
+dnvim --docs dotfiles
+
+dnvim --config neovim
+
+dnvim --root
+
+dnvim --help
 ```
