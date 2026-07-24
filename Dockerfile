@@ -1,81 +1,118 @@
-FROM debian:stable-slim AS base
+FROM debian:bookworm-slim
 
-# Change shell to bash
-SHELL ["/bin/bash", "-ec"]
+SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 
-# Set image locale env variables
-ENV LANG=en_US.utf8
-ENV TZ=America/New_York
-ENV LANGUAGE=en_US:en
-ENV LC_ALL=en_US.UTF-8
-
-# Build neovim
-ARG VERSION=master
-
-# Arguments picked from the command line!
+# ------------------------------------------------------------------------------
+# Build arguments
+# ------------------------------------------------------------------------------
 ARG user
 ARG uid
 ARG gid
-ARG mkey
+ARG dotfiles
+ARG TARGETOS
+ARG TARGETARCH
 
-# Set image locale
-RUN apt update && apt install -y locales \
-  && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
-  # Add new user with our credentials
-  && useradd -m ${user} && \
-  echo "${user}:${mkey}" | chpasswd && \
-  usermod --shell /bin/bash ${user} && \
-  usermod  --uid ${uid} ${user} && \
-  groupmod --gid ${gid} ${user} \
-  # Update debian and install needed packages
-  && apt install -y \
-  bash \
-  git \
-  wget \
-  stow \
-  ripgrep \
-  fd-find \
-  xsel \
-  wl-clipboard \
-  ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip curl doxygen \
-  # uuid-runtme Needed for codeium to work
-  uuid-runtime \
-  postgresql-client default-mysql-client \
-  # compile neovim
-  && git clone https://github.com/neovim/neovim.git ~/neovim \
-  && cd ~/neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo install && rm -rf ~/neovim \
-  # pnpm
-  && runuser - ${user} -c 'export PNPM_HOME="$HOME/.local/share/pnpm" && export PATH="$PNPM_HOME/bin:$PATH" \
-  # && curl -fsSL https://get.pnpm.io/install.sh | bash - \
-  && wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash - \
-  && cd $HOME/.local/share/pnpm/bin \
-  && pnpm runtime set node lts -g' \
-  # clean up
-  && apt purge ninja-build gettext libtool libtool-bin autoconf automake cmake pkg-config unzip doxygen -y \
-  && apt-get clean -y \
-  && apt-get autoclean -y \
-  && apt-get autoremove -y \
-  && rm -rf /var/lib/apt/lists/* \
-  && rm -rf /tmp/* \
-  && echo "root:${mkey}" | chpasswd
+# ------------------------------------------------------------------------------
+# Environment
+# ------------------------------------------------------------------------------
+ENV LANG=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    TZ=America/New_York \
+    HOME=/home/${user} \
+    PNPM_HOME=/home/${user}/.local/share/pnpm \
+    PATH=/home/${user}/.local/share/pnpm/bin:/home/${user}/.go/bin:/home/${user}/go/bin:/usr/local/bin:${PATH}
+
+# ------------------------------------------------------------------------------
+# Base packages
+# ------------------------------------------------------------------------------
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        curl \
+        wget \
+        git \
+        locales \
+        stow \
+        ripgrep \
+        fd-find \
+        xsel \
+        wl-clipboard \
+        uuid-runtime \
+        unzip \
+        tar \
+        postgresql-client \
+        default-mysql-client \
+        libstdc++6 \
+        libatomic1 \
+        build-essential \
+        clang \
+        llvm-dev \
+        libclang-dev \
+        pkg-config \
+        libfuse2 && \
+    localedef -i en_US -f UTF-8 en_US.UTF-8 && \
+    rm -rf /var/lib/apt/lists/*
+
+# ------------------------------------------------------------------------------
+# Install Neovim Nightly
+# ------------------------------------------------------------------------------
+RUN case "${TARGETARCH}" in \
+      amd64) ARCH=x86_64 ;; \
+      arm64) ARCH=arm64 ;; \
+      *) exit 1 ;; \
+    esac && \
+    curl -fsSL \
+      "https://github.com/neovim/neovim/releases/download/nightly/nvim-${TARGETOS}-${ARCH}.tar.gz" \
+      | tar -xz -C /opt && \
+    ln -s "/opt/nvim-${TARGETOS}-${ARCH}/bin/nvim" /usr/local/bin/nvim
+
+# ------------------------------------------------------------------------------
+# User
+# ------------------------------------------------------------------------------
+RUN if ! getent group "${gid}" >/dev/null; then \
+        groupadd -g "${gid}" "${user}"; \
+    fi && \
+    useradd \
+        --uid "${uid}" \
+        --gid "$(getent group "${gid}" | cut -d: -f1)" \
+        --create-home \
+        --shell /bin/bash \
+        "${user}" && \
+    passwd -l root
+
+# ------------------------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------------------------
+COPY --link --chown=${uid}:${gid} .bashrc /home/${user}/
+COPY --link --chown=${uid}:${gid} scripts /home/${user}/scripts
 
 USER ${user}
+WORKDIR ${HOME}
 
-# PATH
-ENV PATH=~/.go/bin:~/go/bin:$PATH
+# ------------------------------------------------------------------------------
+# Install pnpm + latest Node LTS
+# ------------------------------------------------------------------------------
+RUN curl -fsSL https://get.pnpm.io/install.sh | \
+    ENV="${HOME}/.bashrc" SHELL=/bin/bash bash && \
+    pnpm runtime set node lts -g
 
-# bashrc
-COPY --chown=${user}:${user} .bashrc /home/${user}
-COPY --chown=${user}:${user} scripts /home/${user}/scripts
+# ------------------------------------------------------------------------------
+# Install Go, LuaLS and gopls
+# ------------------------------------------------------------------------------
+RUN bash scripts/luals.sh && \
+    bash scripts/golang_installer.sh && \
+    go install golang.org/x/tools/gopls@latest
 
-# Install Go and gopls
-RUN bash ~/scripts/luals.sh && bash ~/scripts/golang_installer.sh \
-  && go install golang.org/x/tools/gopls@latest \
-  # Clone dotfile from github repo and Creation of links
-  && git clone https://github.com/kokou2kpadenou/dotfiles.git ~/.config/.dotfiles \
-  && cd ~/.config/.dotfiles/settings \
-  && stow --target=/home/${user} -S stow w_o_nvimlua \
-  # Remove dotfiles after image build, it will be mounted later from host with volume
-  && rm -rf ~/.config/.dotfiles
+# ------------------------------------------------------------------------------
+# Install dotfiles
+# ------------------------------------------------------------------------------
+RUN git clone --depth=1 \
+        https://github.com/kokou2kpadenou/dotfiles.git \
+       ${dotfiles} && \
+    cd "${dotfiles}/settings" && \
+    stow --target="${HOME}" -S stow w_o_nvimlua && \
+    rm -rf ${dotfiles}
 
-WORKDIR /home/${user}/Documents
+WORKDIR ${HOME}/Documents
